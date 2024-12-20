@@ -1,39 +1,57 @@
 import re
 import time
 import syncedlyrics
+import tkinter as tk
+from tkinter import Label
 
-# Initialize the lyrics client
-#client = SomeClientClass()  # Replace with the correct initialization method.
+song_title = "Primadonna"
+artist = "MARINA"
 
-# Example: Fetch lyrics for "Ain't It Fun" by Paramore
-song_title = "Ain't It Fun"
-artist = "Paramore"
+root = tk.Tk()
+root.geometry("800x200+100+100")  # Set initial size and position
+root.overrideredirect(True)  # Remove window decorations (title bar, etc.)
+root.attributes("-transparentcolor", "pink")  # Make 'pink' fully transparent
+root.attributes("-topmost", True)  # Keep the window always on top
 
-# Fetch synced lyrics (adjust the method based on syncedlyrics documentation)
+lyrics_label = Label(root, text="", font=("Helvetica", 20), bg="black", fg="white", wraplength=780, justify="center")
+lyrics_label.pack(expand=True)
+# Fetch synced lyrics (based on syncedlyrics documentation)
 results = syncedlyrics.search(song_title +" " +artist,enhanced=True)
-print(results)
-'''if not results:
+
+if not results:
     print("No lyrics found!")
 else:
-    # Get lyrics (assuming the first result is correct)
     lyrics_data = results
+    # Regular expression to match line header timestamp
+    line_pattern = r"\[(\d{2}:\d{2}\.\d{2})].*?(<\d{2}:\d{2}\.\d{2}>\s*[\w',?!.]+.*)"
+    matches = re.findall(line_pattern, lyrics_data)
 
-    # Regular expression to extract <timestamp> word pairs
-    pattern = r"<(\d{2}:\d{2}\.\d{2})>\s*([\w',?!.]+)"
-    matches = re.findall(pattern, lyrics_data)
+    
+    lines = []
+    # For each timestamped word
+    for match in matches:
+        main_timestamp, raw_line = match
 
-    # Convert timestamps to seconds
-    def time_to_seconds(timestamp):
-        minutes, seconds = map(float, timestamp.split(":"))
-        return minutes * 60 + seconds
+        # Regular expression to match <> tags but only include words after
+        word_pattern = r"<\d{2}:\d{2}\.\d{2}>\s*([\w',?!.]+)"
+        words = re.findall(word_pattern, raw_line)
+        
+        line = " ".join(words)
 
-    # Sort the lyrics by timestamp
-    sorted_lyrics = sorted(matches, key=lambda x: time_to_seconds(x[0]))
+        # Convert main timestamp to seconds
+        minutes, seconds = map(float, main_timestamp.split(":"))
+        timestamp_in_seconds = minutes * 60 + seconds
 
-    # Print each word at its respective timestamp
+        lines.append((timestamp_in_seconds, line))
+
+    # Sort lines by their timestamps
+    #lines.sort(key=lambda x: x[0]) redundant
+
+    # Print each line at its respective timestamp
     start_time = time.time()
-    for timestamp, word in sorted_lyrics:
-        target_time = time_to_seconds(timestamp)
-        while time.time() - start_time < target_time:
-            time.sleep(0.01)  # Small delay to sync output
-        print(word)'''
+    for target_time, line in lines:
+        while time.time()-start_time < target_time:
+            time.sleep(0.01)  # Small delay to synchronize
+        lyrics_label.config(text=line)
+        root.update()
+        
