@@ -12,6 +12,21 @@ root.geometry("800x200+100+100")  # Set initial size and position
 root.overrideredirect(True)  # Remove window decorations (title bar, etc.)
 root.attributes("-transparentcolor", "pink")  # Make 'pink' fully transparent
 root.attributes("-topmost", True)  # Keep the window always on top
+root.title("LyricaL")
+drag_start_x = 0
+drag_start_y = 0
+
+def on_drag_start(event):
+    drag_start_x = event.x
+    drag_start_y = event.y
+
+def on_dragging(event):
+    root_x = root.winfo_x() + (event.x - drag_start_x)
+    root_y = root.winfo_y() + (event.y - drag_start_y)
+    root.geometry(f"+{root_x}+{root_y}")
+
+root.bind("<ButtonPress-1>", on_drag_start)
+root.bind("<B1-Motion>", on_dragging)
 
 lyrics_label = Label(root, text="", font=("Helvetica", 20), bg="black", fg="white", wraplength=780, justify="center")
 lyrics_label.pack(expand=True)
