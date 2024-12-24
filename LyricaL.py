@@ -7,6 +7,7 @@ import spotipy
 import os
 from dotenv import load_dotenv
 
+
 load_dotenv(dotenv_path=".env")
 spotify_client_id=os.getenv("SPOTIPY_CLIENT_ID")
 spotify_client_secret=os.getenv("SPOTIPY_CLIENT_SECRET")
