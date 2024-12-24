@@ -3,7 +3,24 @@ import time
 import syncedlyrics
 import tkinter as tk
 from tkinter import Label
+import spotipy
+import os
+from dotenv import load_dotenv
 
+load_dotenv(dotenv_path=".env")
+spotify_client_id=os.getenv("SPOTIPY_CLIENT_ID")
+spotify_client_secret=os.getenv("SPOTIPY_CLIENT_SECRET")
+spotify_redirect_uri=os.getenv("SPOTIPY_REDIRECT_URI")
+
+
+scope = 'user-read-currently-playing'
+oauth_object = spotipy.SpotifyOAuth(client_id=spotify_client_id,
+                                client_secret=spotify_client_secret,
+                                redirect_uri=spotify_redirect_uri,
+                                scope=scope)
+token_dict=oauth_object.get_access_token()
+#token=token_dict('access_token')
+#spotify_object = spotipy.Spotify(auth=token)
 song_title = "Primadonna"
 artist = "MARINA"
 
