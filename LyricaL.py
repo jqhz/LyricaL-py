@@ -6,6 +6,8 @@ from tkinter import Label
 import spotipy
 import os
 from dotenv import load_dotenv
+import asyncio
+import threading
 
 
 load_dotenv(dotenv_path=".env")
@@ -47,10 +49,11 @@ root.bind("<B1-Motion>", on_dragging)
 lyrics_label = Label(root, text="", font=("Helvetica", 20), bg="black", fg="white", wraplength=780, justify="center")
 lyrics_label.pack(expand=True)
 
-def fetch_lyrics(song_title,artist,track_id):
-    current = spotify_object.currently_playing()
+async def fetch_lyrics(song_title,artist,track_id):
+    current = spotify_object.current_user_playing_track()
     status = current['currently_playing_type']
-
+    #track_id=current['item']['id']
+    print("status: "+status)
     try:
         if status == 'track':
             
@@ -88,11 +91,18 @@ def fetch_lyrics(song_title,artist,track_id):
 
                 # Print each line at its respective timestamp
                 start_time = time.time()
+                if (current['item']['id']!=track_id):
+                    return
                 for target_time, line in lines:
+                    
                     while time.time()-start_time < target_time:
                         time.sleep(0.01)  # Small delay to synchronize
                     lyrics_label.config(text=line)
                     root.update()
+                    if (current['item']['id']!=track_id):
+                        return
+                    
+                    
                     
         elif status == 'ad':
             print("ad")
@@ -100,18 +110,49 @@ def fetch_lyrics(song_title,artist,track_id):
         print("Error")
     
 # Fetch synced lyrics (based on syncedlyrics documentation)
-current_track_id=None
-while True:
-    current = spotify_object.currently_playing()
-    current_track = spotify_object.current_user_playing_track()
+#current_track_id=None
+'''while True:
+    #current = spotify_object.currently_playing()
+    current = spotify_object.current_user_playing_track()
 
     if current is None or current['item'] is None:
         print("none found")
         continue
-    track_id = current_track['item']['id']
+    track_id = current['item']['id']
     artist = current['item']['album']['artists'][0]['name']
     song_title = current['item']['name']
+    #print("track id: "+track_id)
+    #print("artist: "+artist)
+    ##print("song title: "+song_title)
     if track_id != current_track_id:
         current_track_id=track_id
-        fetch_lyrics(song_title,artist,track_id)
+    fetch_lyrics(song_title,artist,track_id)'''
 
+async def monitor_song():
+    current_track_id = None
+    while True:
+        try:
+            current = spotify_object.current_user_playing_track()
+
+            if current and current['item']:
+                
+                track_id = current['item']['id']
+                artist = current['item']['album']['artists'][0]['name']
+                song_title = current['item']['name']
+                #print("track id: "+track_id)
+                #print("artist: "+artist)
+                ##print("song title: "+song_title)
+                if track_id != current_track_id:
+                    current_track_id=track_id
+                    await fetch_lyrics(song_title,artist,track_id)
+            await asyncio.sleep(5)
+        except Exception as e:
+            print("aaaaaaaaaaaaaaaaaa")
+            await asyncio.sleep(5)
+
+def run_event_loop():
+    asyncio.run(monitor_song())
+
+threading.Thread(target=run_event_loop,daemon=True).start()
+
+root.mainloop()
