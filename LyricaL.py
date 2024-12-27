@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import asyncio
 import threading
 
+# Code to load environment variables and create SpotifyOAuth Object to make GET requests
 load_dotenv(dotenv_path=".env")
 spotify_client_id=os.getenv("SPOTIPY_CLIENT_ID")
 spotify_client_secret=os.getenv("SPOTIPY_CLIENT_SECRET")
@@ -23,6 +24,7 @@ token_dict=oauth_object.get_cached_token()
 token=token_dict['access_token']
 spotify_object = spotipy.Spotify(auth=token)
 
+# Create tkinter window and label to display the lyrics
 root = tk.Tk()
 root.geometry("800x200+100+100")  # Set initial size and position
 root.overrideredirect(True)  # Remove window decorations (title bar, etc.)
@@ -73,66 +75,83 @@ async def update_track_info():
         trackName,artist,currentProgress,isPlaying = getTrackInfo()
         time.sleep(.1)'''
 
-async def fetch_lyrics(song_title,artist,track_id):
-    current = spotify_object.current_user_playing_track()
-    status = current['currently_playing_type']
-    #track_id=current['item']['id']
-    print("status: "+status)
-    try:
-        if status == 'track':
-            
-            print(artist + ": " + song_title)
-            results = syncedlyrics.search(song_title +" " +artist,enhanced=True)
+async def fetch_lyrics():
+    while True:
+        song_changed_event.wait()
+        if not (song_changed_event.is_set()):
+            return    
+        song_changed_event.clear()
+        current = spotify_object.current_user_playing_track()
+        status = current['currently_playing_type']
+        track_id = current['item']['id']
+        artist = current['item']['album']['artists'][0]['name']
+        song_title = current['item']['name']
+        progress_ms = current['progress_ms']
+        
+        # Convert progress_ms to minutes and seconds
+        progress_sec = progress_ms // 1000
+        progress_min = progress_sec // 60
+        progress_sec %= 60
+        #track_id=current['item']['id']
+        print("status: "+status)
+        try:
+            if status == 'track':
+                print(artist + ": " + song_title)
+                results = syncedlyrics.search(song_title +" " +artist,enhanced=True)
 
-            if not results:
-                print("No lyrics found!")
-            else:
-                lyrics_data = results
-                # Regular expression to match line header timestamp
-                line_pattern = r"\[(\d{2}:\d{2}\.\d{2})].*?(<\d{2}:\d{2}\.\d{2}>\s*[\w',?!.]+.*)"
-                matches = re.findall(line_pattern, lyrics_data)
+                if not results:
+                    print("No lyrics found!")
+                else:
+                    lyrics_data = results
+                    # Regular expression to match line header timestamp
+                    line_pattern = r"\[(\d{2}:\d{2}\.\d{2})].*?(<\d{2}:\d{2}\.\d{2}>\s*[\w',?!.]+.*)"
+                    matches = re.findall(line_pattern, lyrics_data)
 
-                
-                lines = []
-                # For each timestamped word
-                for match in matches:
-                    main_timestamp, raw_line = match
-
-                    # Regular expression to match <> tags but only include words after
-                    word_pattern = r"<\d{2}:\d{2}\.\d{2}>\s*([\w',?!.]+)"
-                    words = re.findall(word_pattern, raw_line)
                     
-                    line = " ".join(words)
+                    lines = []
+                    # For each timestamped word
+                    for match in matches:
+                        main_timestamp, raw_line = match
 
-                    # Convert main timestamp to seconds
-                    minutes, seconds = map(float, main_timestamp.split(":"))
-                    timestamp_in_seconds = minutes * 60 + seconds
+                        # Regular expression to match <> tags but only include words after
+                        word_pattern = r"<\d{2}:\d{2}\.\d{2}>\s*([\w',?!.]+)"
+                        words = re.findall(word_pattern, raw_line)
+                        
+                        line = " ".join(words)
 
-                    lines.append((timestamp_in_seconds, line))
+                        # Convert main timestamp to seconds
+                        minutes, seconds = map(float, main_timestamp.split(":"))
+                        timestamp_in_seconds = minutes * 60 + seconds
 
-                # Sort lines by their timestamps
-                #lines.sort(key=lambda x: x[0]) redundant
+                        lines.append((timestamp_in_seconds, line))
 
-                # Print each line at its respective timestamp
-                start_time = time.time()
-            
-                for target_time, line in lines:
-                    current = spotify_object.current_user_playing_track()
-                    print("sys id:"+ current['item']['id'])
-                    print("track id: "+ track_id)
-                    if (current['item']['id']) != track_id:
-                        return
-                    while time.time()-start_time < target_time:
-                        time.sleep(0.01)  # Small delay to synchronize
-                    lyrics_label.config(text=line)
-                    root.update()               
-        elif status == 'ad':
-            print("ad")
-    except Exception as e:
-        print("Error")
+                    # Sort lines by their timestamps
+                    #lines.sort(key=lambda x: x[0]) redundant
+
+                    # Print each line at its respective timestamp
+                    start_time = time.time()
+
+                    for target_time, line in lines:
+                        #song_changed_event.wait()
+                        if(song_changed_event.is_set()):
+                            return
+                        current = spotify_object.current_user_playing_track()
+                        print("sys id:"+ current['item']['id'])
+                        #print("track id: "+ track_id)
+                        #if (current['item']['id']) != track_id:
+                            #return
+                        while time.time()-start_time < target_time:
+                            time.sleep(0.01)  # Small delay to synchronize
+                        lyrics_label.config(text=line)
+                        root.update()               
+            elif status == 'ad':
+                print("ad")
+        except Exception as e:
+            print("Error")
     
 # Fetch synced lyrics (based on syncedlyrics documentation)
 #current_track_id=None
+
 
 async def monitor_song():
     current_track_id = None
@@ -147,21 +166,31 @@ async def monitor_song():
                 song_title = current['item']['name']
                 if track_id != current_track_id:
                     current_track_id=track_id
-                    print("track id: "+track_id)
-                    print("artist: "+artist)
-                    print("song title: "+song_title)
-                    print("current_track_id: "+current_track_id)
-                    print("\n")
-                    await fetch_lyrics(song_title,artist,track_id)
+                    song_changed_event.set()
+                    print("AHHHHHHHHHHHHHHHHH WHAT THE FUCK WHAT AHT FUCK")
+                    #print("track id: "+track_id)
+                    #print("artist: "+artist)
+                    #print("song title: "+song_title)
+                    #print("current_track_id: "+current_track_id)
+                    #print("\n")
+                    #await fetch_lyrics()
                     print(5)
-            await asyncio.sleep(5)
+            await asyncio.sleep(.1)
         except Exception as e:
-            print("aaaaaaaaaaaaaaaaaa")
+            print("ERROR IN MONITOR_SONG()")
             await asyncio.sleep(5)
 
+# Thread for getting user's current song playing
 def run_event_loop():
     asyncio.run(monitor_song())
 
-threading.Thread(target=run_event_loop,daemon=True).start()
+def run_second_loop():
+    asyncio.run(fetch_lyrics())
+# Thread for getting lyrics on display
+song_changed_event = threading.Event()
+threading.Thread(target=run_event_loop,daemon=False).start()
+threading.Thread(target=run_second_loop,daemon=False).start()
+
+
 
 root.mainloop()
