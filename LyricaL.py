@@ -49,32 +49,6 @@ root.bind("<B1-Motion>", on_dragging)
 lyrics_label = Label(root, text="", font=("Helvetica", 20), bg="black", fg="white", wraplength=780, justify="center")
 lyrics_label.pack(expand=True)
 
-'''def getTrackInfo():
-    current_track = spotify_object.current_user_playing_track()
-    if current_track is None or (current_track['item'] is None):
-        return None
-    artist = current_track['item']['artists'][0]['name']
-    track_name = current_track['item']['name']
-    is_playing = current_track['is_playing']
-    progress_ms = current_track['progress_ms']
-    
-    # Convert progress_ms to minutes and seconds
-    progress_sec = progress_ms // 1000
-    progress_min = progress_sec // 60
-    progress_sec %= 60
-    return {
-        'artist': artist,
-        'trackName': track_name,
-        'progressMin': progress_min,
-        'progressSec': progress_sec,
-        'isPlaying': is_playing
-    }
-async def update_track_info():
-    while True:
-        global trackName,artist,currentProgress,isPlaying
-        trackName,artist,currentProgress,isPlaying = getTrackInfo()
-        time.sleep(.1)'''
-
 async def fetch_lyrics():
     while True:
         song_changed_event.wait()
@@ -125,9 +99,6 @@ async def fetch_lyrics():
 
                         lines.append((timestamp_in_seconds, line))
 
-                    # Sort lines by their timestamps
-                    #lines.sort(key=lambda x: x[0]) redundant
-
                     # Print each line at its respective timestamp
                     start_time = time.time()
 
@@ -152,7 +123,6 @@ async def fetch_lyrics():
 # Fetch synced lyrics (based on syncedlyrics documentation)
 #current_track_id=None
 
-
 async def monitor_song():
     current_track_id = None
     while True:
@@ -167,13 +137,6 @@ async def monitor_song():
                 if track_id != current_track_id:
                     current_track_id=track_id
                     song_changed_event.set()
-                    print("AHHHHHHHHHHHHHHHHH WHAT THE FUCK WHAT AHT FUCK")
-                    #print("track id: "+track_id)
-                    #print("artist: "+artist)
-                    #print("song title: "+song_title)
-                    #print("current_track_id: "+current_track_id)
-                    #print("\n")
-                    #await fetch_lyrics()
                     print(5)
             await asyncio.sleep(.1)
         except Exception as e:
