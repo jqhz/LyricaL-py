@@ -64,7 +64,8 @@ async def update_display():
         #line_set_event.set()
 def fetch_lyrics():
     global status,line,track_id,artist,song_title,current_progress,lines
-    song_changed_event.wait()
+    if not song_changed_event.is_set():
+        return
     song_changed_event.clear()
     if status == 'track':
         print(artist + ": " + song_title)
@@ -98,18 +99,10 @@ def fetch_lyrics():
     elif status == 'ad':
         print("ad")
     print( "i fetched lyrics")
-    #lyrics_fetched_event.set()
-# Fetch synced lyrics (based on syncedlyrics documentation)
-#current_track_id=None
+    
 def update_overlay_text():
     global line,track_id,artist,song_title,current_progress,lines
     def find_nearest_time(current_progress, lines):
-        """
-        Find the nearest lyric line based on the current progress.
-        :param current_progress: Current playback time in seconds.
-        :param lines: List of tuples where each tuple contains (timestamp_in_seconds, lyric_line).
-        :return: The lyric line corresponding to the nearest timestamp.
-        """
         # Filter lines to include only those with timestamps <= current progress
         filtered_lines = list(filter(lambda x: x[0] <= current_progress, lines))
         
@@ -120,16 +113,13 @@ def update_overlay_text():
             # Find the line with the maximum timestamp <= current progress
             nearest_line = max(filtered_lines, key=lambda x: x[0])
             return nearest_line[1]
-
     # Check if the lines are available or if any error occurred
     if not lines or not isinstance(lines, list):
         return
-
-    # Find the nearest lyric line to the current playback time
+    oldLine = line
     line = find_nearest_time(current_progress, lines)
-    print(line)
-    # Trigger an event to update the overlay
-    line_set_event.set()
+    if oldLine != line:
+        line_set_event.set()
 async def monitor_song():
     current_track_id = None
     while True:
@@ -151,7 +141,13 @@ async def monitor_song():
                 if track_id != current_track_id:
                     current_track_id=track_id
                     song_changed_event.set()
-                    print(5)
+                    #print(5)
+            else:
+                status = None
+                track_id = None
+                artist = None
+                song_title = None
+                current_progress = None
             await asyncio.sleep(.1)
         except Exception as e:
             print("ERROR IN MONITOR_SONG()")
@@ -160,7 +156,7 @@ async def root_loop():
     while True:
         line_set_event.wait()
         #lyrics_fetched_event.wait()
-        print("test")
+        #print("test")
         lyrics_label.config(text=line)
         root.update()
         line_set_event.clear()
@@ -170,7 +166,6 @@ async def root_loop():
 # Thread for getting user's current song playing
 def run_event_loop():
     asyncio.run(monitor_song())
-
 def run_second_loop():
     asyncio.run(update_display())
 def run_third_loop():
@@ -190,9 +185,6 @@ line = ""
 status = ""
 
 lines = []
-actual_line = ""
-time_str=""
-parsed_lyrics={}
-timestampsInSeconds=[]
+
 root.mainloop()
 
